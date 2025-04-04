@@ -3,39 +3,58 @@ package main
 import (
 	"log"
 	"net/http"
-	"short-link/internal/handlers"
+	"short-link/internal/short_link"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 func main() {
 	// Create a new ServeMux
 	mux := http.NewServeMux()
+	// Connecting to database
 
+	dsn := "host=localhost user=postgres password=admin dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Database failed to start: %v", err)
+
+		return
+	}
+	log.Printf("Database connected successfully %v", db.Name())
+
+	shortLinkRepo := short_link.NewRepository(db)
 	// Initialize handlers
-	shortLinkHandler := handlers.NewShortLinkHandler()
+	shortLinkHandler := short_link.NewHandler(*shortLinkRepo)
 
-	// Define routes
-	mux.HandleFunc("GET /", handleHome)
-	mux.HandleFunc("GET /health", handleHealth)
+	// Định nghĩa handler cho POST /api/v1/shortlinks
+	mux.HandleFunc("/api/v1/shortlinks", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			shortLinkHandler.Create(w, r)
+		} else {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
-	// Short link routes
-	mux.HandleFunc("/api/v1/shortlinks", shortLinkHandler.Create)
-	mux.HandleFunc("/api/v1/shortlinks/", shortLinkHandler.GetByCode)
+	// Định nghĩa handler cho GET /api/v1/shortlinks/{code}
+	mux.HandleFunc("/api/v1/shortlinks/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			shortLinkHandler.GetByCode(w, r)
+		} else {
+			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Start the server
 	log.Println("Server starting on :8080")
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+
+	s := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	if err := s.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
-}
 
-func handleHome(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"message": "Welcome to Short Link API"}`))
-}
-
-func handleHealth(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status": "healthy"}`))
 }
