@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"short-link/internal/config"
 	"short-link/internal/short_link"
 
 	"gorm.io/driver/postgres"
@@ -12,16 +14,16 @@ import (
 func main() {
 	// Create a new ServeMux
 	mux := http.NewServeMux()
-	// Connecting to database
 
-	dsn := "host=localhost user=postgres password=admin dbname=postgres port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+	config := config.GetConfig()
+
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai", config.DBHost, config.DBUser, config.DBPassword, config.DBName, config.DBPort)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Database failed to start: %v", err)
 
 		return
 	}
-	log.Printf("Database connected successfully %v", db.Name())
 
 	shortLinkRepo := short_link.NewRepository(db)
 	// Initialize handlers
@@ -37,7 +39,7 @@ func main() {
 	})
 
 	// Định nghĩa handler cho GET /api/v1/shortlinks/{code}
-	mux.HandleFunc("/api/v1/shortlinks/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			shortLinkHandler.GetByCode(w, r)
 		} else {
@@ -49,7 +51,7 @@ func main() {
 	log.Println("Server starting on :8080")
 
 	s := &http.Server{
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%s", config.ServerPort),
 		Handler: mux,
 	}
 
