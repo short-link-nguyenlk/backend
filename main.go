@@ -25,6 +25,14 @@ func main() {
 		return
 	}
 
+	// Auto-migrate the ShortLink table
+	log.Println("Running database migrations...")
+	err = db.AutoMigrate(&short_link.ShortLink{})
+	if err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
+	log.Println("Database migration completed successfully!")
+
 	shortLinkRepo := short_link.NewRepository(db)
 	// Initialize handlers
 	shortLinkHandler := short_link.NewHandler(*shortLinkRepo)

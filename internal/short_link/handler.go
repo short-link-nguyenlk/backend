@@ -51,12 +51,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	maxRetries := 3
 
 	var shortCode string
-	for i := range maxRetries {
+	for i := 0; i < maxRetries; i++ {
 		if i == 0 {
 			shortCode = h.GenerateHash(req.OriginalURL, 0)
 		} else {
 			shortCode = h.GenerateHash(req.OriginalURL, time.Now().UnixNano())
 		}
+
 		existingShortCode, err := h.repo.FindByCode(shortCode)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
